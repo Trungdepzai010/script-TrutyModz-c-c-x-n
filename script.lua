@@ -177,60 +177,36 @@ SuspensionTab:CreateButton({
    end,
 })
 
-MusicTab:CreateSection("Boombox Music List (Auto Update)")
+MusicTab:CreateSection("Auto Updated Music List (GitHub)")
 
-local FIREBASE_URL = "https://share-file-6ee75-default-rtdb.asia-southeast1.firebasedatabase.app/boombox.json"
 local githubRawUrl = "https://raw.githubusercontent.com/Trungdepzai010/script-TrutyModz-c-c-x-n/main/songs.json"
 
-local songList
-
--- 1) Ưu tiên lấy từ Firebase (bài admin thêm trên web sẽ tự có)
-local okF, resF = pcall(function()
-    return game:HttpGet(FIREBASE_URL)
+local success, response = pcall(function()
+    return game:HttpGet(githubRawUrl)
 end)
-if okF and resF then
-    local okD, data = pcall(function()
-        return HttpService:JSONDecode(resF)
-    end)
-    if okD and type(data) == "table" then
-        local tmp = {}
-        for _, v in pairs(data) do
-            if type(v) == "table" and v.name and v.audioId then
-                table.insert(tmp, {Name = v.name, ID = tostring(v.audioId), _t = v.addedAt or 0})
-            end
-        end
-        table.sort(tmp, function(a, b) return a._t > b._t end)
-        if #tmp > 0 then songList = tmp end
-    end
-end
 
--- 2) Dự phòng: songs.json trên GitHub
-if not songList then
-    local success, response = pcall(function()
-        return game:HttpGet(githubRawUrl)
+if success and response then
+    local jsonSuccess, songList = pcall(function()
+        return HttpService:JSONDecode(response)
     end)
-    if success and response then
-        local jsonSuccess, decoded = pcall(function()
-            return HttpService:JSONDecode(response)
-        end)
-        if jsonSuccess and type(decoded) == "table" then
-            songList = decoded
+    if jsonSuccess and type(songList) == "table" then
+        Rayfield:Notify({Title = "Thành công", Content = "Đã tải " .. #songList .. " bài hát!", Duration = 3})
+        for _, song in ipairs(songList) do
+            MusicTab:CreateButton({
+               Name = "Copy ID: " .. tostring(song.Name) .. " (" .. tostring(song.ID) .. ")",
+               Callback = function()
+                  if setclipboard then
+                     setclipboard(tostring(song.ID))
+                     Rayfield:Notify({Title = "Copied", Content = "Copied ID: " .. tostring(song.ID), Duration = 2})
+                  end
+               end,
+            })
         end
+    else
+        Rayfield:Notify({Title = "Lỗi JSON", Content = "File songs.json sai định dạng!", Duration = 4})
     end
-end
-
-if songList then
-    for _, song in ipairs(songList) do
-        MusicTab:CreateButton({
-           Name = "Copy ID: " .. tostring(song.Name) .. " (" .. tostring(song.ID) .. ")",
-           Callback = function()
-              if setclipboard then
-                 setclipboard(tostring(song.ID))
-                 Rayfield:Notify({Title = "Copied", Content = "Copied ID: " .. tostring(song.ID), Duration = 2})
-              end
-           end,
-        })
-    end
+else
+    Rayfield:Notify({Title = "Lỗi kết nối", Content = "Không thể tải file từ GitHub!", Duration = 4})
 end
 
 MusicTab:CreateSection("Play Custom Music")
